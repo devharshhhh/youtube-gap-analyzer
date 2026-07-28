@@ -214,5 +214,44 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
+# ==========================================
+# AI Project Specific
+# ==========================================
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# API Keys
+credentials.json
+service_account.json
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+
+# Model files
+models/
+checkpoints/
+*.ckpt
+*.pt
+*.pth
+*.onnx
+
+# Vector Database
+qdrant_storage/
+chroma_db/
+faiss_index/
+lancedb/
+
+# OS files
+.DS_Store
+Thumbs.db
+
 # Streamlit
 .streamlit/secrets.toml
