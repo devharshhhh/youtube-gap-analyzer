@@ -1,0 +1,12 @@
+google-genai
+google-api-python-client
+youtube-transcript-api
+streamlit
+python-dotenv
+sentence-transformers
+chromadb
+rank-bm25
+ragas
+datasets
+pandas
+tiktoken
