@@ -233,6 +233,11 @@ cp .env.example .env
 
 Add your API keys.
 
+Start Redis (required for caching)
+
+docker run -d -p 6379:6379 --name redis-cache redis:latest
+
+
 Run
 
 ```bash
@@ -244,9 +249,7 @@ streamlit run app.py
 # Environment Variables
 
 ```
-OPENAI_API_KEY=
 GROQ_API_KEY=
-GEMINI_API_KEY=
 YOUTUBE_API_KEY=
 TAVILY_API_KEY=
 ```
