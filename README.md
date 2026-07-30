@@ -1,3 +1,5 @@
+![Eval Gate](https://github.com/devharshhhh/youtube-gap-analyzer/actions/workflows/eval-gate.yml/badge.svg)
+
 # TubeScope - AI-Powered YouTube Gap Analyzer
 
 > Analyze YouTube content like a researcher, not a viewer.
@@ -12,45 +14,42 @@ Instead of relying on intuition, TubeScope uses Retrieval-Augmented Generation (
 
 ## Demo
 
-*(GIF coming soon)*
+*(GIF/video coming soon)*
 
 ---
 
-# Why?
+## Why?
 
 Most creators spend hours:
-
 - Watching competitor videos
 - Taking notes
 - Comparing information
 - Reading articles
 - Looking for unique angles
 
-TubeScope automates this workflow.
-
-It searches YouTube, extracts or transcribes video content, performs semantic retrieval, analyzes what has already been covered, identifies missing information, and generates research-backed content suggestions.
+TubeScope automates this workflow. It searches YouTube, extracts or transcribes video content, performs hybrid semantic + keyword retrieval, analyzes what has already been covered, identifies missing information, and generates research-backed content suggestions — grounded in retrieved evidence, not the model's free-floating memory.
 
 ---
 
-# Features
+## Features
 
-- Search YouTube videos by topic
-- Fetch official YouTube transcripts
-- Automatically transcribe videos using Whisper when transcripts are unavailable
-- Hybrid Retrieval (Semantic Search + Keyword Search)
-- Evidence-backed Gap Analysis
-- AI-generated Video Briefs
-- AI-generated Script Drafts
-- Citation-aware Responses
-- Cost Tracking
-- Latency Benchmarking
-- Observability Dashboard
+- Search YouTube videos by topic (YouTube Data API)
+- Fetch official YouTube caption transcripts, with multi-language fallback
+- Automatically transcribe videos using local Whisper when no captions are available
+- Hybrid Retrieval (dense semantic search + BM25 keyword search, combined via Reciprocal Rank Fusion)
+- Cross-encoder re-ranking for precision on top candidates
+- Evidence-backed Gap Analysis (LLM compares retrieved research vs. retrieved YouTube coverage)
+- AI-generated Content Briefs and Video Scripts, grounded in retrieved chunks
+- Custom faithfulness scoring (LLM-as-judge groundedness check)
+- Cost tracking per LLM call (tokens + USD)
+- Latency benchmarking (p50/p95/p99)
+- Redis-backed chunk caching (with graceful fallback if Redis is unavailable)
+- Automated retrieval-quality eval gate (recall@k, MRR) running in CI on every push
+- Observability dashboard (separate Streamlit app) for latency, cost, and retrieval quality
 
 ---
 
-# Architecture
-
-(Add architecture diagram here)
+## Architecture
 
 ```
                    User
@@ -59,211 +58,234 @@ It searches YouTube, extracts or transcribes video content, performs semantic re
               Streamlit Interface
                      │
                      ▼
-             Graph Pipeline (LangGraph)
+         Graph Pipeline (LangGraph)
                      │
       ┌──────────────┼───────────────┐
-      ▼              ▼               ▼
- YouTube Agent   Research Agent   Gap Analysis
+      ▼              ▼               │
+ YouTube Agent   Research Agent      │
       │              │               │
-      ▼              ▼               ▼
-Transcript      Web Research     Evidence Merge
-      │
-      ▼
-Whisper (Fallback)
-      │
-      ▼
-Chunking
-      │
-      ▼
-Embeddings
-      │
-      ▼
-Vector Database (ChromaDB)
-      │
-      ▼
-Hybrid Retrieval
-      │
-      ▼
-Script Generation
+      ▼              ▼               │
+Captions/Whisper  Web Search         │
+      │              │               │
+      └──────┬───────┘               │
+             ▼                       │
+         Chunking                    │
+             ▼                       │
+   Embeddings + ChromaDB             │
+             ▼                       │
+   Hybrid Retrieval (Dense + BM25)   │
+   (chunk cache: Redis, TTL-based)   │
+             ▼                       │
+     Cross-Encoder Re-ranking        │
+             ▼                       │
+        Gap Analysis  ◄──────────────┘
+             ▼
+      Content Brief
+             ▼
+     Script Generation (on request)
 ```
 
 ---
 
-# Tech Stack
+## Tech Stack
 
-## Backend
-
+**Backend**
 - Python
 - Streamlit
 - LangGraph
-- LangChain
 
-## AI
+**AI / LLM**
+- Groq API (Llama 3.3 70B Versatile)
+- Whisper (via `faster-whisper`, local CPU inference)
 
-- OpenAI
-- Gemini
-- Groq
-- Whisper
+**Retrieval**
+- ChromaDB (vector store)
+- `sentence-transformers` (embeddings: `all-MiniLM-L6-v2`)
+- `rank_bm25` (sparse retrieval)
+- Cross-encoder re-ranking (`ms-marco-MiniLM-L-6-v2`)
 
-## Retrieval
+**Infrastructure**
+- Redis (chunk caching, run via Docker)
+- Docker (Redis container)
+- GitHub Actions (CI — automated eval gate)
 
-- ChromaDB
-- Vector Embeddings
-- Semantic Search
-- Hybrid Retrieval
-
-## External APIs
-
-- YouTube Data API
+**External APIs**
+- YouTube Data API v3
 - Tavily Search API
 
 ---
 
-# Project Structure
+## Project Structure
 
 ```
 youtube-gap-analyzer/
-
-├── agents/
-├── ingestion/
-├── retrieval/
-├── eval/
-├── observability/
-├── tests/
-├── docs/
-├── app.py
-├── graph_pipeline.py
+├── agents/              # research, YouTube, gap analysis, script generation
+├── ingestion/            # chunking, embedding + storage
+├── retrieval/            # hybrid search, re-ranking, Redis cache
+├── eval/                 # eval harness, baseline scores, CI gate check
+├── observability/        # latency/cost tracking + dashboard data
+├── scripts/               # manual diagnostic/dev scripts (not automated tests)
+├── chroma_db/             # sample vector DB, used by CI for eval gate testing
+├── .github/workflows/    # GitHub Actions CI workflow
+├── app.py                 # main Streamlit app
+├── graph_pipeline.py      # LangGraph pipeline (main orchestration)
+├── main.py                 # simpler sequential pipeline (pre-LangGraph version)
+├── observability_dashboard.py  # separate observability Streamlit app
 ├── requirements.txt
 └── README.md
 ```
 
----
-
-# Pipeline
-
-1. User enters a YouTube topic.
-
-2. Search the top-ranked YouTube videos.
-
-3. Retrieve transcripts.
-
-4. If transcript is unavailable:
-   - Download audio
-   - Transcribe using Whisper
-
-5. Chunk transcripts.
-
-6. Generate embeddings.
-
-7. Store embeddings inside ChromaDB.
-
-8. Retrieve relevant information using Hybrid Search.
-
-9. Perform AI-based Gap Analysis.
-
-10. Generate:
-
-- Content Brief
-- Missing Topics
-- Video Structure
-- Script Draft
+> Note: `chroma_db/` in this repo is sample data used by the CI eval gate, not a live dataset. Running the app yourself will populate/query your own topic-specific data at runtime.
 
 ---
 
-# Evaluation
+## Pipeline
 
-The system includes evaluation utilities for measuring:
-
-- Faithfulness
-- Source Coverage
-- Retrieval Quality
-- Latency
-- Cost Tracking
+1. User enters a topic.
+2. **Research Agent** searches the live web (Tavily) and summarizes findings with source attribution.
+3. **YouTube Agent** pulls the top-ranked videos for the topic.
+4. For each video, get content in this priority order:
+   - Official YouTube captions (with translation fallback for non-English captions)
+   - Local Whisper transcription (if no captions exist)
+   - Title + description (last-resort fallback)
+5. Chunk all research and video content (fixed-size chunking).
+6. Generate embeddings and store in ChromaDB (chunk data cached in Redis).
+7. Retrieve the most relevant chunks via hybrid search (dense + BM25 + RRF), then re-rank with a cross-encoder.
+8. **Gap Analysis Agent** compares retrieved research against retrieved YouTube coverage to identify what's missing.
+9. Generate a structured Content Brief.
+10. On request, generate a Script grounded in the brief.
 
 ---
 
-# Future Roadmap
+## Evaluation
 
-## Version 1.1
+Retrieval quality was measured on a 16-query hand-labeled eval set across a ~280-chunk multi-topic corpus (machine learning, deep learning, Python, data science):
 
-- Better reranking
+| Method | Recall@5 | MRR |
+|---|---|---|
+| Dense only | 87.5% | 0.6271 |
+| BM25 only | 75.0% | 0.4135 |
+| Hybrid (RRF) | 87.5% | 0.6146 |
+| Hybrid + Re-ranked | 87.5% | **0.6615** |
+
+Dense embeddings outperformed BM25 alone, since eval queries were often paraphrased relative to source transcripts. Cross-encoder re-ranking gave the best ranking quality (MRR) even without improving raw recall — it consistently pushed correct chunks higher when found.
+
+An automated eval gate (`eval/gate_check.py`) re-runs this evaluation and fails (exit code 1) if recall or MRR regresses by more than 5 percentage points versus a saved baseline. This runs automatically in CI on every push via GitHub Actions.
+
+Additional evaluation utilities:
+- **Faithfulness scoring** — custom LLM-as-judge groundedness check (does the generated brief only state things present in retrieved context?). Note: this measures groundedness, not factual truth — a source-level error would still score as "faithful."
+- **Latency tracking** — p50/p95/p99 per-query timing, viewable in the observability dashboard
+- **Cost tracking** — token counts + USD cost per LLM call, logged per query
+
+---
+
+## Known Limitations
+
+- Eval set is small (16 queries) — directionally meaningful, not statistically strong. A larger eval set (50+) would give more confidence in method comparisons.
+- Faithfulness scoring checks groundedness against retrieved context, not real-world factual accuracy.
+- Redis cache is keyed by exact topic string (no normalization) — "AI" and "ai" would be treated as different cache entries.
+- Redis cache doesn't auto-invalidate on new writes mid-session; acceptable for this scale, would need proper invalidation in a production setting.
+- Whisper fallback trades speed for coverage — CPU transcription is noticeably slower than reading existing captions, and very long videos are skipped via a duration cap to avoid stalling the pipeline.
+- `main.py` (simple sequential pipeline) and `graph_pipeline.py` (LangGraph version) currently coexist; the app primarily uses the LangGraph version.
+
+---
+
+## Future Roadmap
+
+**Version 1.1**
+- Larger eval set
 - Query rewriting
-- Improved prompt engineering
+- Additional data sources (Reddit, research papers)
 
-## Version 1.2
-
+**Version 1.2**
 - Multi-video comparison
-- Thumbnail suggestions
-- Title generation
+- Thumbnail/title suggestions
 
-## Version 2.0
-
-- FastAPI backend
-- React frontend
-- Authentication
-- Cloud deployment
+**Version 2.0**
+- FastAPI backend + React frontend
+- Full application containerization (Docker Compose: app + Redis together)
+- Authentication and cloud deployment for multi-user use
 
 ---
 
-# Installation
+## Installation
 
-Clone the repository
-
+**1. Clone the repository**
 ```bash
-git clone https://github.com/devharshhh/youtube-gap-analyzer.git
-```
-
-Go inside the project
-
-```bash
+git clone https://github.com/devharshhhh/youtube-gap-analyzer.git
 cd youtube-gap-analyzer
 ```
 
-Install dependencies
+**2. Create and activate a virtual environment**
+```bash
+python -m venv venv
 
+# Windows
+venv\Scripts\activate
+
+# macOS/Linux
+source venv/bin/activate
+```
+
+**3. Install Python dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 
-Create an environment file
-
+**4. Install ffmpeg** (required for Whisper audio extraction)
 ```bash
-cp .env.example .env
+# Windows
+winget install ffmpeg
+
+# macOS
+brew install ffmpeg
+
+# Linux
+sudo apt install ffmpeg
 ```
 
-Add your API keys.
-
-Start Redis (required for caching)
-
+**5. Start Redis** (required — via Docker)
+```bash
 docker run -d -p 6379:6379 --name redis-cache redis:latest
+```
 
+**6. Create a `.env` file** in the project root with your own API keys (see below).
 
-Run
-
+**7. Run the app**
 ```bash
 streamlit run app.py
 ```
 
+**8. (Optional) Run the observability dashboard separately**
+```bash
+streamlit run observability_dashboard.py --server.port 8502
+```
+
 ---
 
-# Environment Variables
+## Environment Variables
 
+Create a `.env` file with:
 ```
 GROQ_API_KEY=
 YOUTUBE_API_KEY=
 TAVILY_API_KEY=
 ```
 
+- **Groq** — free tier available at console.groq.com
+- **YouTube Data API v3** — free quota via console.cloud.google.com (Google Cloud Console)
+- **Tavily** — free tier available at tavily.com
+
 ---
 
-# License
+## License
 
 MIT License
 
 ---
 
-# Author
+## Author
 
-Harsh Kumar
+**Harsh Kumar**
 
-Building production-grade AI systems focused on Retrieval-Augmented Generation, Agentic AI, and LLM Evaluation.
+Building AI systems focused on Retrieval-Augmented Generation, agent orchestration, and LLM evaluation.
