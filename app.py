@@ -40,7 +40,10 @@ if "result" in st.session_state:
     # --- YouTube videos analyzed ---
     with st.expander(f"📺 {len(result['videos'])} YouTube videos analyzed"):
         for v in result["videos"]:
-            source_tag = "📝 transcript" if v.get("content_source") == "transcript" else "⚠️ title/description only"
+            source_tag = {
+                "transcript": "📝 transcript",
+                "whisper_transcription": "🎙️ whisper transcription",
+            }.get(v.get("content_source"), "⚠️ title/description only")
             st.markdown(f"- **{v['title']}** — {v['channel']} ({source_tag})")
 
     # --- Retrieved chunks with scores (shows the retrieval work) ---
@@ -82,8 +85,3 @@ if "result" in st.session_state:
         st.markdown("## Script")
         st.text_area("Generated script", script_result["script"], height=400)
         st.caption(f"Script generation cost: ${script_result['cost']['total_cost_usd']:.6f}")
-
-source_tag = {
-    "transcript": "📝 transcript",
-    "whisper_transcription": "🎙️ whisper transcription",
-}.get(v.get("content_source"), "⚠️ title/description only")
