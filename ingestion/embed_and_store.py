@@ -2,7 +2,11 @@ import chromadb
 from sentence_transformers import SentenceTransformer
 
 # Local, persistent vector database — saves to a folder on disk
-chroma_client = chromadb.PersistentClient(path="./chroma_db")
+import tempfile
+import os
+
+CHROMA_DIR = os.path.join(tempfile.gettempdir(), "chroma_db")
+client = chromadb.PersistentClient(path=CHROMA_DIR)
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
 
