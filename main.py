@@ -1,3 +1,5 @@
+import streamlit as st
+
 from agents.research_agent import research_topic
 from agents.youtube_agent import get_top_videos
 from agents.gap_analysis import analyze_gaps
@@ -6,6 +8,8 @@ from ingestion.chunker import fixed_size_chunk
 from ingestion.embed_and_store import store_chunks
 from retrieval.hybrid_search import hybrid_search
 from retrieval.rerank import rerank
+
+st.set_page_config(page_title="TubeScope", page_icon="🎬", layout="wide")
 
 
 def run_pipeline(topic: str, want_script: bool = False) -> dict:
@@ -53,21 +57,55 @@ def run_pipeline(topic: str, want_script: bool = False) -> dict:
         total_cost += script_result["cost"]["total_cost_usd"]
 
     result["total_cost_usd"] = round(total_cost, 6)
-
     return result
 
 
-if __name__ == "__main__":
-    topic = input("Enter a video topic: ")
-    result = run_pipeline(topic, want_script=True)
+# ---------------------------------------------------------------------------
+# Streamlit UI — this is what was missing. The old file only had a
+# `if __name__ == "__main__":` block that called input(), which blocks
+# forever on a server with no attached terminal (that's why the deployed
+# app sat on a blank page with a clean-looking log). Every code path below
+# uses st.* widgets instead, so Streamlit actually has something to render.
+# ---------------------------------------------------------------------------
 
-    print("\n--- BRIEF ---\n")
-    print(result["brief"])
+st.title("🎬 TubeScope")
+st.caption("AI-powered YouTube content gap analyzer")
 
-    print("\n--- SCRIPT ---\n")
-    print(result.get("script", "(not generated)"))
+with st.form("analyze_form"):
+    topic = st.text_input("Video topic", placeholder="e.g. beginner woodworking tools")
+    want_script = st.checkbox("Also generate a script", value=False)
+    submitted = st.form_submit_button("Analyze", type="primary")
 
-    print("\n--- COST BREAKDOWN ---")
+if submitted:
+    if not topic.strip():
+        st.warning("Enter a topic first.")
+        st.stop()
+
+    with st.spinner("Researching, retrieving, and finding content gaps..."):
+        try:
+            result = run_pipeline(topic, want_script=want_script)
+        except Exception as e:
+            st.error(f"Pipeline failed: {e}")
+            st.stop()
+
+    st.subheader("Content gap brief")
+    st.write(result["brief"])
+
+    if want_script:
+        st.subheader("Generated script")
+        st.write(result.get("script", "(not generated)"))
+
+    with st.expander("Sources used"):
+        for s in result.get("sources", []):
+            st.write(s)
+
+    with st.expander("YouTube videos analyzed"):
+        for v in result.get("videos", []):
+            st.write(v.get("title", "Untitled"))
+
+    st.subheader("Cost breakdown")
     for stage, cost in result["cost_breakdown"].items():
-        print(f"  {stage}: ${cost['total_cost_usd']:.6f}")
-    print(f"  TOTAL: ${result['total_cost_usd']:.6f}")
+        st.write(f"**{stage}**: ${cost['total_cost_usd']:.6f}")
+    st.write(f"**Total: ${result['total_cost_usd']:.6f}**")
+else:
+    st.info("Enter a topic above and click Analyze to get started.")
