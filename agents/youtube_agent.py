@@ -20,7 +20,7 @@ def _get_whisper_model():
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-def get_top_videos(topic: str, max_results: int = 8) -> list:
+def get_top_videos(topic: str, max_results: int = 6) -> list:
     search_response = youtube.search().list(
         q=topic,
         part="snippet",
