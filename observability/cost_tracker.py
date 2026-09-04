@@ -2,7 +2,7 @@ import tiktoken
 
 encoder = tiktoken.get_encoding("cl100k_base")  # Approximation for Llama tokenization
 
-# Groq pricing for llama-3.3-70b-versatile (as of mid-2026)
+# Groq pricing for openai/gpt-oss-120b (as of mid-2026)
 INPUT_COST_PER_M = 0.59
 OUTPUT_COST_PER_M = 0.79
 

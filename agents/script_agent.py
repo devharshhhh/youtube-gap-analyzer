@@ -23,7 +23,7 @@ def generate_script(brief: str, length_minutes: int = 5, tone: str = "conversati
     """
 
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         messages=[{"role": "user", "content": prompt}],
     )
     script_text = response.choices[0].message.content

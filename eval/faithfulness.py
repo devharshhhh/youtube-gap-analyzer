@@ -20,7 +20,7 @@ def extract_claims(brief_text: str) -> list:
     {brief_text}
     """
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         messages=[{"role": "user", "content": prompt}],
     )
     lines = response.choices[0].message.content.strip().split("\n")
@@ -41,7 +41,7 @@ def check_claim_support(claim: str, context: str) -> bool:
     exactly one word: YES or NO. Do not explain.
     """
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         messages=[{"role": "user", "content": prompt}],
     )
     answer = response.choices[0].message.content.strip().upper()
