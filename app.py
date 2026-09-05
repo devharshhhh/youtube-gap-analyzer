@@ -97,10 +97,13 @@ go = st.button("🔍 Find the gap", type="primary")
 
 if go and topic:
     with st.spinner("Researching the web and top YouTube videos, then comparing coverage..."):
-        result = run_pipeline(topic, want_script=False)
+        try:
+            result = run_pipeline(topic, want_script=False)
+        except Exception as e:
+            st.error("Something went wrong on that run — this usually clears up on retry (cold start / API hiccup). Please try again.")
+            st.stop()
     st.session_state["result"] = result
     st.session_state["topic"] = topic
-    # Clear any stale script/faithfulness from a previous topic
     st.session_state.pop("script_result", None)
     st.session_state.pop("faithfulness", None)
 elif go and not topic:
